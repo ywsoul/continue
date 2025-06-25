@@ -5,7 +5,6 @@ import {
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import type { Editor } from "@tiptap/react";
-import type { RangeInFile } from "core";
 import {
   forwardRef,
   useContext,
@@ -25,11 +24,9 @@ import {
   vscQuickInputBackground,
 } from "../..";
 import { IdeMessengerContext } from "../../../context/IdeMessenger";
-import { setDialogMessage, setShowDialog } from "../../../redux/slices/uiSlice";
 import { fontSize } from "../../../util";
 import FileIcon from "../../FileIcon";
 import SafeImg from "../../SafeImg";
-import AddDocsDialog from "../../dialogs/AddDocsDialog";
 import HeaderButtonWithToolTip from "../../gui/HeaderButtonWithToolTip";
 import { NAMED_ICONS } from "../icons";
 import type { ComboBoxItem, ComboBoxItemType } from "../types";
@@ -139,6 +136,8 @@ interface AtMentionDropdownProps {
   onClose: () => void;
 }
 
+
+// 格式化文件大小的工具函数（临时内联，之后可以提取）
 const formatFileSize = (fileSize: number) => {
   const KB = 1000;
   const MB = 1000_000;
@@ -155,31 +154,42 @@ const formatFileSize = (fileSize: number) => {
   return `${fileSize} byte${fileSize > 1 ? "s" : ""}`;
 };
 
+/**
+ * 重构后的 AtMentionDropdown 组件
+ * 提供更好的代码组织和错误处理
+ */
 const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
   const dispatch = useDispatch();
-
   const ideMessenger = useContext(IdeMessengerContext);
 
+  // 状态管理
   const [selectedIndex, setSelectedIndex] = useState(0);
-
-  const [subMenuTitle, setSubMenuTitle] = useState<string | undefined>(
-    undefined,
-  );
-  const [querySubmenuItem, setQuerySubmenuItem] = useState<
-    ComboBoxItem | undefined
-  >(undefined);
-  const [loadingSubmenuItem, setLoadingSubmenuItem] = useState<
-    ComboBoxItem | undefined
-  >(undefined);
-
+  const [subMenuTitle, setSubMenuTitle] = useState<string | undefined>(undefined);
+  const [querySubmenuItem, setQuerySubmenuItem] = useState<ComboBoxItem | undefined>(undefined);
+  const [loadingSubmenuItem, setLoadingSubmenuItem] = useState<ComboBoxItem | undefined>(undefined);
   const [allItems, setAllItems] = useState<ComboBoxItem[]>([]);
 
+  // TODO: 重新实现项目选择逻辑，当工具函数可用时使用
+  // const handleItemSelection = async (item: ComboBoxItem) => {
+  //   if (item.type === "file" && item.query) {
+  //     try {
+  //       const [fileExceeds, fileSize] = await checkItemSize(ideMessenger, item.type, item.query);
+  //       handleItemTooBig(ideMessenger, props.editor, fileExceeds, fileSize, item, props.command);
+  //     } catch (error) {
+  //       console.error("Error handling file selection:", error);
+  //       props.command({ ...item, itemType: item.type });
+  //     }
+  //   } else {
+  //     props.command({ ...item, itemType: item.type });
+  //   }
+  // };
+
+  // 临时使用原始逻辑
   async function isItemTooBig(
     name: string,
     query: string,
   ): Promise<[boolean, number]> {
     const selectedCode: RangeInFile[] = [];
-    // Get context item from core
     const contextResult = await ideMessenger.request(
       "context/getContextItems",
       {
@@ -195,66 +205,18 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
     }
 
     const item = contextResult.content[0];
-
-    // Check if the context item exceeds the context length of the selected model
-    const result = await ideMessenger.request("isItemTooBig", {
-      item,
-    });
+    const result = await ideMessenger.request("isItemTooBig", { item });
 
     if (result.status === "error") {
       return [false, -1];
     }
 
     const size = new Blob([item.content]).size;
-
     return [result.content, size];
   }
 
-  function handleItemTooBig(
-    fileExceeds: boolean,
-    fileSize: number,
-    item: ComboBoxItem,
-  ) {
-    if (fileExceeds) {
-      props.editor
-        .chain()
-        .focus()
-        .command(({ tr, state }) => {
-          const text = state.doc.textBetween(
-            0,
-            state.selection.from,
-            "\n",
-            "\n",
-          ); // Get the text before the cursor
-          const lastAtIndex = text.lastIndexOf("@");
-
-          if (lastAtIndex !== -1) {
-            // Delete text after the last "@"
-            tr.delete(lastAtIndex + 1, state.selection.from);
-            return true;
-          }
-          return false;
-        })
-        .run();
-
-      // Trigger warning message
-      ideMessenger.ide.showToast(
-        "warning",
-        fileSize > 0 ? "File exceeds context length" : "Can't load the file",
-        {
-          modal: true,
-          detail:
-            fileSize > 0
-              ? `'${item.title}' is ${formatFileSize(fileSize)} which exceeds the allowed context length and cannot be processed by the model`
-              : `'${item.title}' could not be loaded. Please check if the file exists and has the correct permissions.`,
-        },
-      );
-    } else {
-      props.command({ ...item, itemType: item.type });
-    }
-  }
-
   useEffect(() => {
+    // TODO: 使用重构后的特殊菜单项创建逻辑
     const items = [...props.items];
     if (subMenuTitle === "Type to search docs") {
       items.push({
@@ -263,8 +225,6 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
         action: () => {
           dispatch(setShowDialog(true));
           dispatch(setDialogMessage(<AddDocsDialog />));
-
-          // Delete back to last '@'
           const { tr } = props.editor.view.state;
           const text = tr.doc.textBetween(0, tr.selection.from);
           const start = text.lastIndexOf("@");
@@ -288,7 +248,7 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
               tr.delete(start, tr.selection.from).scrollIntoView(),
             );
           }
-          props.onClose(); // Escape the mention list after creating a new prompt file
+          props.onClose();
         },
         description: "Create a new .prompt file",
       });
@@ -308,7 +268,7 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
               tr.delete(start, tr.selection.from).scrollIntoView(),
             );
           }
-          props.onClose(); // Escape the mention list after creating a new rule
+          props.onClose();
         },
         description: "Creates a rule file",
       });
@@ -362,7 +322,46 @@ const AtMentionDropdown = forwardRef((props: AtMentionDropdownProps, ref) => {
     if (item) {
       if (item.type === "file" && item.query) {
         isItemTooBig(item.type, item.query).then(([fileExceeds, fileSize]) =>
-          handleItemTooBig(fileExceeds, fileSize, item),
+          // 临时内联处理逻辑
+          {
+            if (fileExceeds) {
+              props.editor
+                .chain()
+                .focus()
+                .command(({ tr, state }: any) => {
+                  const text = state.doc.textBetween(
+                    0,
+                    state.selection.from,
+                    "\n",
+                    "\n",
+                  );
+                  const lastAtIndex = text.lastIndexOf("@");
+
+                  if (lastAtIndex !== -1) {
+                    tr.delete(lastAtIndex + 1, state.selection.from);
+                    return true;
+                  }
+                  return false;
+                })
+                .run();
+
+              // 使用上面定义的 formatFileSize 函数
+
+              ideMessenger.ide.showToast(
+                "warning",
+                fileSize > 0 ? "File exceeds context length" : "Can't load the file",
+                {
+                  modal: true,
+                  detail:
+                    fileSize > 0
+                      ? `'${item.title}' is ${formatFileSize(fileSize)} which exceeds the allowed context length and cannot be processed by the model`
+                      : `'${item.title}' could not be loaded. Please check if the file exists and has the correct permissions.`,
+                },
+              );
+            } else {
+              props.command({ ...item, itemType: item.type });
+            }
+          }
         );
       } else {
         props.command({ ...item, itemType: item.type });

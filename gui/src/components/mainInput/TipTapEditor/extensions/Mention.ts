@@ -3,6 +3,10 @@ import { PluginKey } from "@tiptap/pm/state";
 import Suggestion from "@tiptap/suggestion";
 import { MentionOptions } from "./types";
 
+/**
+ * 重构后的 Mention 扩展
+ * 提供更好的错误处理和配置选项
+ */
 export const Mention = Node.create<MentionOptions>({
   name: "mention",
 
@@ -23,47 +27,70 @@ export const Mention = Node.create<MentionOptions>({
         char: "@",
         pluginKey: new PluginKey(this.name),
         command: ({ editor, range, props }) => {
-          // increase range.to by one when the next node is of type "text"
-          // and starts with a space character
-          const nodeAfter = editor.view.state.selection.$to.nodeAfter;
-          const overrideSpace = nodeAfter?.text?.startsWith(" ");
-
-          if (overrideSpace) {
-            range.to += 1;
-          }
-
-          editor
-            .chain()
-            .focus()
-            .insertContentAt(range, [
-              {
-                type: this.name,
-                attrs: props,
-              },
-              {
-                type: "text",
-                text: " ",
-              },
-            ])
-            .run();
-
-          window.getSelection()?.collapseToEnd();
+          this.insertMention(editor, range, props);
         },
         allow: ({ state, range }) => {
-          const $from = state.doc.resolve(range.from);
-          const type = state.schema.nodes[this.name];
-          const allow = !!$from.parent.type.contentMatch.matchType(type);
-
-          // Check if there's a space after the "@"
-          const textFrom = range.from;
-          const textTo = state.selection.$to.pos;
-          const text = state.doc.textBetween(textFrom, textTo);
-          const hasSpace = text.includes(" ");
-
-          return allow && !hasSpace;
+          return this.allowMention(state, range);
         },
       },
     };
+  },
+
+  /**
+   * 插入提及节点的核心逻辑
+   */
+  insertMention(editor: any, range: any, props: any) {
+    try {
+      // 检查下一个节点是否以空格开始，需要调整范围
+      const nodeAfter = editor.view.state.selection.$to.nodeAfter;
+      const overrideSpace = nodeAfter?.text?.startsWith(" ");
+
+      if (overrideSpace) {
+        range.to += 1;
+      }
+
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(range, [
+          {
+            type: this.name,
+            attrs: props,
+          },
+          {
+            type: "text",
+            text: " ",
+          },
+        ])
+        .run();
+
+      // 将光标移动到提及后面
+      window.getSelection()?.collapseToEnd();
+    } catch (error) {
+      console.error("Error inserting mention:", error);
+    }
+  },
+
+  /**
+   * 检查是否允许插入提及
+   */
+  allowMention(state: any, range: any): boolean {
+    try {
+      const $from = state.doc.resolve(range.from);
+      const type = state.schema.nodes[this.name];
+      const allow = !!$from.parent.type.contentMatch.matchType(type);
+
+      // 检查 "@" 后是否有空格
+      const textFrom = range.from;
+      const textTo = state.selection.$to.pos;
+      const text = state.doc.textBetween(textFrom, textTo);
+      const hasSpace = text.includes(" ");
+
+      return allow && !hasSpace;
+    } catch (error) {
+      console.error("Error checking mention allowance:", error);
+      return false;
+    }
   },
 
   group: "inline",
@@ -178,32 +205,45 @@ export const Mention = Node.create<MentionOptions>({
 
   addKeyboardShortcuts() {
     return {
-      Backspace: () =>
-        this.editor.commands.command(({ tr, state }) => {
-          let isMention = false;
-          const { selection } = state;
-          const { empty, anchor } = selection;
+      Backspace: () => this.handleBackspace(),
+    };
+  },
 
-          if (!empty) {
+  /**
+   * 处理退格键的逻辑
+   */
+  handleBackspace(): boolean {
+    return this.editor.commands.command(({ tr, state }) => {
+      try {
+        let isMention = false;
+        const { selection } = state;
+        const { empty, anchor } = selection;
+
+        // 只在没有选中文本时处理
+        if (!empty) {
+          return false;
+        }
+
+        // 查找光标前的提及节点
+        state.doc.nodesBetween(anchor - 1, anchor, (node, pos) => {
+          if (node.type.name === this.name) {
+            isMention = true;
+            // 将提及节点替换为触发字符
+            tr.insertText(
+              this.options.suggestion.char || "@",
+              pos,
+              pos + node.nodeSize,
+            );
             return false;
           }
+        });
 
-          state.doc.nodesBetween(anchor - 1, anchor, (node, pos) => {
-            if (node.type.name === this.name) {
-              isMention = true;
-              tr.insertText(
-                this.options.suggestion.char || "",
-                pos,
-                pos + node.nodeSize,
-              );
-
-              return false;
-            }
-          });
-
-          return isMention;
-        }),
-    };
+        return isMention;
+      } catch (error) {
+        console.error("Error handling backspace:", error);
+        return false;
+      }
+    });
   },
 
   addProseMirrorPlugins() {

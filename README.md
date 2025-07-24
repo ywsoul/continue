@@ -86,6 +86,14 @@ file
 
 Learn about how to install and use Continue in the docs [here](https://continue.dev/docs/getting-started/install)
 
+## 代码格式化
+
+本项目使用 [Prettier](https://prettier.io/) 统一代码风格。
+
+- 执行 `npm run format` 可自动格式化所有代码文件。
+- 提交前建议运行 `npm run format:check` 检查格式。
+- 配置详见 `.prettierrc`，忽略文件见 `.prettierignore`。
+
 ## Contributing
 
 Read the [contributing guide](https://github.com/continuedev/continue/blob/main/CONTRIBUTING.md), and

@@ -276,6 +276,12 @@ model:
   the chat template for that model is already built in Continue. If not, you will have to add the template type and
   corresponding edit and chat templates.
 
+## 代码风格与格式化
+
+- 所有代码请遵循项目的 Prettier 配置（见 .prettierrc），可通过 `npm run format` 自动格式化。
+- 编辑器建议安装 EditorConfig 插件，自动应用 .editorconfig 规范。
+- 提交前请运行 `npm run format:check`，确保无格式化问题。
+
 ## Contributor License Agreement (CLA)
 
 We require all contributors to accept the CLA and have made it as easy as commenting on your PR:

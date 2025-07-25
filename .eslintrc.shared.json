@@ -1,20 +1,25 @@
 {
+  // 解析器设置
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 6,
     "sourceType": "module"
   },
+
+  // 插件配置
   "plugins": ["@typescript-eslint", "import"],
+
+  // 忽略特定目录和类型声明文件
+  "ignorePatterns": ["out", "dist", "**/*.d.ts"],
+
+  // 规则设置（按字母顺序排列）
   "rules": {
-    "no-negated-condition": "warn",
     "@typescript-eslint/naming-convention": "off",
     "@typescript-eslint/no-floating-promises": "warn",
-    "@typescript-eslint/semi": "warn",
     "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/semi": "warn",
     "curly": "warn",
     "eqeqeq": "warn",
-    "no-throw-literal": "warn",
-    "semi": "off",
     "import/order": [
       "warn",
       {
@@ -34,7 +39,9 @@
         },
         "newlines-between": "always"
       }
-    ]
-  },
-  "ignorePatterns": ["out", "dist", "**/*.d.ts"]
+    ],
+    "no-negated-condition": "warn",
+    "no-throw-literal": "warn",
+    "semi": "off"
+  }
 }

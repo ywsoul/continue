@@ -37,6 +37,63 @@ type UIState = {
 export const DEFAULT_TOOL_SETTING: ToolPolicy = "allowedWithPermission";
 export const DEFAULT_RULE_SETTING: RulePolicy = "on";
 
+// Enhanced tool permission logic
+const getOptimalToolPermission = (toolName: BuiltInToolNames): ToolPolicy => {
+  // Safe read-only operations should not require permission
+  const readOnlyTools = [
+    BuiltInToolNames.ReadFile,
+    BuiltInToolNames.ReadCurrentlyOpenFile,
+    BuiltInToolNames.GrepSearch,
+    BuiltInToolNames.FileGlobSearch,
+    BuiltInToolNames.ViewDiff,
+    BuiltInToolNames.LSTool,
+    BuiltInToolNames.SmartExplore, // New smart exploration tool
+  ];
+  
+  // Web operations are generally safe
+  const webTools = [
+    BuiltInToolNames.SearchWeb,
+    BuiltInToolNames.FetchUrlContent,
+  ];
+  
+  // File modification tools need permission
+  const modificationTools = [
+    BuiltInToolNames.EditExistingFile,
+    BuiltInToolNames.CreateNewFile,
+    BuiltInToolNames.CreateRuleBlock,
+  ];
+  
+  // High-risk tools need permission
+  const highRiskTools = [
+    BuiltInToolNames.RunTerminalCommand,
+  ];
+  
+  if (readOnlyTools.includes(toolName) || webTools.includes(toolName)) {
+    return "allowedWithoutPermission";
+  }
+  
+  if (modificationTools.includes(toolName) || highRiskTools.includes(toolName)) {
+    return "allowedWithPermission";
+  }
+  
+  return "allowedWithPermission"; // Default to safe
+};
+
+// Create optimized tool settings
+const createOptimizedToolSettings = (): ToolPolicies => {
+  const settings: ToolPolicies = {};
+  
+  // Apply optimal permissions for all built-in tools
+  Object.values(BuiltInToolNames).forEach(toolName => {
+    settings[toolName] = getOptimalToolPermission(toolName);
+  });
+  
+  // Special case: RequestRule is disabled by default as it's meta
+  settings[BuiltInToolNames.RequestRule] = "disabled";
+  
+  return settings;
+};
+
 export const uiSlice = createSlice({
   name: "ui",
   initialState: {
@@ -50,20 +107,7 @@ export const uiSlice = createSlice({
     ),
     shouldAddFileForEditing: false,
     ttsActive: false,
-    toolSettings: {
-      [BuiltInToolNames.ReadFile]: "allowedWithoutPermission",
-      [BuiltInToolNames.EditExistingFile]: "allowedWithPermission",
-      [BuiltInToolNames.CreateNewFile]: "allowedWithPermission",
-      [BuiltInToolNames.RunTerminalCommand]: "allowedWithPermission",
-      [BuiltInToolNames.GrepSearch]: "allowedWithoutPermission",
-      [BuiltInToolNames.FileGlobSearch]: "allowedWithoutPermission",
-      [BuiltInToolNames.SearchWeb]: "allowedWithoutPermission",
-      [BuiltInToolNames.FetchUrlContent]: "allowedWithPermission",
-      [BuiltInToolNames.ViewDiff]: "allowedWithoutPermission",
-      [BuiltInToolNames.LSTool]: "allowedWithoutPermission",
-      [BuiltInToolNames.CreateRuleBlock]: "allowedWithPermission",
-      [BuiltInToolNames.RequestRule]: "disabled",
-    },
+    toolSettings: createOptimizedToolSettings(),
     toolGroupSettings: {
       [BUILT_IN_GROUP_NAME]: "include",
     },
@@ -154,6 +198,19 @@ export const uiSlice = createSlice({
     setTTSActive: (state, { payload }: PayloadAction<boolean>) => {
       state.ttsActive = payload;
     },
+    // Enhanced tool permission actions
+    allowToolAlways: (state, action: PayloadAction<string>) => {
+      state.toolSettings[action.payload] = "allowedWithoutPermission";
+    },
+    allowToolWithPermission: (state, action: PayloadAction<string>) => {
+      state.toolSettings[action.payload] = "allowedWithPermission";
+    },
+    disableTool: (state, action: PayloadAction<string>) => {
+      state.toolSettings[action.payload] = "disabled";
+    },
+    resetToolPermissions: (state) => {
+      state.toolSettings = createOptimizedToolSettings();
+    },
   },
 });
 
@@ -170,6 +227,10 @@ export const {
   addRule,
   toggleRuleSetting,
   setTTSActive,
+  allowToolAlways,
+  allowToolWithPermission,
+  disableTool,
+  resetToolPermissions,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

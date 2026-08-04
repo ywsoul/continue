@@ -11,6 +11,7 @@ import { readFileTool } from "./definitions/readFile";
 import { requestRuleTool } from "./definitions/requestRule";
 import { runTerminalCommandTool } from "./definitions/runTerminalCommand";
 import { searchWebTool } from "./definitions/searchWeb";
+import { smartExploreTool } from "./definitions/smartExplore";
 import { viewDiffTool } from "./definitions/viewDiff";
 
 export const baseToolDefinitions = [
@@ -26,6 +27,7 @@ export const baseToolDefinitions = [
   lsTool,
   createRuleBlock,
   fetchUrlContentTool,
+  smartExploreTool,
   // replacing with ls tool for now
   // viewSubdirectoryTool,
   // viewRepoMapTool,

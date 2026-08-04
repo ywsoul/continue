@@ -14,6 +14,7 @@ import { readFileImpl } from "./implementations/readFile";
 import { requestRuleImpl } from "./implementations/requestRule";
 import { runTerminalCommandImpl } from "./implementations/runTerminalCommand";
 import { searchWebImpl } from "./implementations/searchWeb";
+import { smartExploreImpl } from "./implementations/smartExplore";
 import { viewDiffImpl } from "./implementations/viewDiff";
 import { safeParseToolCallArgs } from "./parseArgs";
 
@@ -154,6 +155,8 @@ async function callBuiltInTool(
       return await searchWebImpl(args, extras);
     case BuiltInToolNames.FetchUrlContent:
       return await fetchUrlContentImpl(args, extras);
+    case BuiltInToolNames.SmartExplore:
+      return await smartExploreImpl(args, extras);
     case BuiltInToolNames.ViewDiff:
       return await viewDiffImpl(args, extras);
     case BuiltInToolNames.LSTool:
